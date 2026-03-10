@@ -19,8 +19,8 @@ your results, allowing for real-time adaptation of parameters and updated visual
 etc. I already added streamlit to the `pyproject.toml` - after running `uv sync`, you 
 can use the command `uv run streamlit run Home.py` to run the streamlit demo. It's set
 up in a [`multipage setting`](https://docs.streamlit.io/get-started/tutorials/create-a-multipage-app),
-meaning `Home.py` acts as an entry point (a 'Home page'), and additional files  
-in the `pages` folder are accessed through a sidebar. 
+meaning `Home.py` acts as an entry point (a 'Home page'), and additional files in the
+`pages` folder are accessed through a sidebar. 
 
 Have fun with DSP!
 
