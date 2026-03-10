@@ -1,0 +1,11 @@
+[project]
+name = "dsp-course"
+version = "0.1.0"
+description = "venv supporting the dsp-demo"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.2",
+    "streamlit>=1.54.0",
+]
