@@ -2,24 +2,18 @@ import streamlit as st
 
 st.set_page_config(page_title="Digital Signal Processing", layout="wide")
 
-st.title("Methods and Topics of DSP - Overview")
+st.title("Supporting Materials for Digital Signal Processing")
 st.markdown("""
-Here's a short demo on how you should document your findings on each topic we discuss
-in class. In the end, you should have a nice package of demos implemented in Python, 
-with a Streamlit app to visualize and compare different settings and their effect.  
+In this Streamlit setup, you'll find demos and examples for all topics we will cover
+in the course. Each topic will have its own page with detailed explanations,
+code snippets, and interactive demos to help you understand the concepts better.
+To navigate to the different topics, use the sidebar on the left. Each topic will be
+organized in a way that allows you to easily follow along and apply what you've learned.
 
-Use the menu to switch between pages:
-- **Short Streamlit Demo:** here's a short demo on what each of your home assignements
-  should look like (no need for 100k words, just keep it short but informative)
-- **To Be Continued:** here's an empty page for demonstrating the pages setup. Add a
-  novel page for each assignment so that you can browse through your insights at the end
-  of the term when preparing for the exam.
+Use this repo as a basis for your own home assignment repo - your Streamlit app should
+be structured in the same fashion.
+
+**Have fun exploring DSP!**
 """)
 
-st.badge("The page on each topic should include:", color="blue")
-st.markdown("""
-1. Introduction  
-2. Methods  
-3. Results  
-4. Discussion
-""")
+st.image("docs/images/overview.png")
