@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+# for session 1
 def stem_plot(ax, n, x, title="", xlabel="n", ylabel="Amplitude", color=None, ylim=None):
     markerline, stemlines, baseline = ax.stem(n, x, basefmt=" ")
     if color is not None:
@@ -97,3 +98,110 @@ def shift_kernel_for_convolution(h, out_idx, N):
     return h_shifted
 
 
+# for session 2
+# for session 2
+def safe_corr(a, b):
+    """
+    Normalized zero-mean correlation / inner product.
+    Good for showing why sine-only matching can fail for cosine signals.
+    """
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+
+    a = a - np.mean(a)
+    b = b - np.mean(b)
+
+    na = np.linalg.norm(a)
+    nb = np.linalg.norm(b)
+
+    if na < 1e-12 or nb < 1e-12:
+        return 0.0
+
+    return np.dot(a, b) / (na * nb)
+
+
+def build_signal(t, components, dc=0.0, noise_std=0.0, seed=0):
+    """
+    Build a signal from components.
+
+    components: list of tuples
+        (amplitude, frequency_hz, basis)
+    where basis is "sin" or "cos"
+    """
+    x = np.zeros_like(t, dtype=float) + dc
+
+    for amp, freq, basis in components:
+        if basis == "sin":
+            x += amp * np.sin(2 * np.pi * freq * t)
+        else:
+            x += amp * np.cos(2 * np.pi * freq * t)
+
+    if noise_std > 0:
+        rng = np.random.default_rng(seed)
+        x += rng.normal(0, noise_std, size=len(t))
+
+    return x
+
+
+def one_sided_spectrum(signal, fs):
+    """
+    One-sided spectrum for real-valued signals.
+    Returns:
+        freqs, magnitude, power, X
+    """
+    signal = np.asarray(signal, dtype=float)
+    X = np.fft.rfft(signal)
+    freqs = np.fft.rfftfreq(len(signal), d=1 / fs)
+    magnitude = np.abs(X)
+    power = magnitude ** 2
+    return freqs, magnitude, power, X
+
+
+def full_spectrum(signal, fs):
+    """
+    Full FFT spectrum including negative frequencies.
+    Returns sorted frequencies and FFT values.
+    """
+    signal = np.asarray(signal, dtype=float)
+    X = np.fft.fft(signal)
+    freqs = np.fft.fftfreq(len(signal), d=1 / fs)
+    order = np.argsort(freqs)
+    return freqs[order], X[order]
+
+
+def alias_frequency(f, fs):
+    """
+    Fold frequency into the Nyquist interval [-fs/2, fs/2].
+    """
+    return ((f + fs / 2) % fs) - fs / 2
+
+
+def parseval_energy(signal):
+    """
+    Returns:
+        energy_time, energy_freq
+    """
+    signal = np.asarray(signal, dtype=float)
+    X = np.fft.fft(signal)
+    energy_time = np.sum(np.abs(signal) ** 2)
+    energy_freq = np.sum(np.abs(X) ** 2) / len(X)
+    return energy_time, energy_freq
+
+
+def reconstruct_from_top_k_fft(signal, k):
+    """
+    Keep only the k strongest FFT bins and reconstruct.
+    Returns:
+        x_recon, X_sparse
+    """
+    signal = np.asarray(signal, dtype=float)
+    X = np.fft.fft(signal)
+
+    idx_sorted = np.argsort(np.abs(X))[::-1]
+    keep_idx = idx_sorted[:k]
+
+    X_sparse = np.zeros_like(X, dtype=complex)
+    X_sparse[keep_idx] = X[keep_idx]
+
+    x_recon = np.fft.ifft(X_sparse).real
+    return x_recon, X_sparse
