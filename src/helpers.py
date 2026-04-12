@@ -205,3 +205,73 @@ def reconstruct_from_top_k_fft(signal, k):
 
     x_recon = np.fft.ifft(X_sparse).real
     return x_recon, X_sparse
+
+
+def make_short_window(window_type: str, N: int) -> np.ndarray:
+    if window_type == "Rectangular":
+        return np.ones(N)
+    elif window_type == "Hann":
+        return np.hanning(N)
+    elif window_type == "Hamming":
+        return np.hamming(N)
+    elif window_type == "Blackman":
+        return np.blackman(N)
+    else:
+        raise ValueError(f"Unknown window type: {window_type}")
+    
+
+def place_window_on_signal_grid(window: np.ndarray, total_len: int, start_idx: int) -> np.ndarray:
+    y = np.zeros(total_len)
+    end_idx = min(start_idx + len(window), total_len)
+    valid_len = max(0, end_idx - start_idx)
+    if valid_len > 0:
+        y[start_idx:end_idx] = window[:valid_len]
+    return y
+
+
+def make_analysis_window(window_type: str, N: int) -> np.ndarray:
+    if window_type == "Rectangular":
+        return np.ones(N)
+    elif window_type == "Hann":
+        return np.hanning(N)
+    elif window_type == "Hamming":
+        return np.hamming(N)
+    elif window_type == "Blackman":
+        return np.blackman(N)
+    else:
+        raise ValueError(f"Unknown window type: {window_type}")
+
+
+def place_window(window: np.ndarray, total_len: int, start_idx: int) -> np.ndarray:
+    y = np.zeros(total_len)
+    end_idx = min(start_idx + len(window), total_len)
+    valid_len = max(0, end_idx - start_idx)
+    if valid_len > 0:
+        y[start_idx:end_idx] = window[:valid_len]
+    return y
+
+
+def generate_scenario_signal(scenario: str, t: np.ndarray, fs: float, rng: np.random.Generator,
+                             noise_std: float, delta_f: float) -> tuple[np.ndarray, str]:
+    if scenario == "Noisy single tone":
+        x = np.sin(2 * np.pi * 20 * t) + noise_std * rng.normal(size=len(t))
+        msg = "A single tone in broadband noise."
+    elif scenario == "Strong distant interferer":
+        x = 0.2 * np.sin(2 * np.pi * 20 * t) + 1.0 * np.sin(2 * np.pi * 60 * t)
+        msg = "Weak tone at 20 Hz, strong interferer at 60 Hz."
+    elif scenario == "Strong nearby interferer":
+        x = 0.25 * np.sin(2 * np.pi * 20 * t) + 1.0 * np.sin(2 * np.pi * (20 + delta_f) * t)
+        msg = f"Weak tone at 20 Hz, strong nearby interferer at {20 + delta_f:.1f} Hz."
+    elif scenario == "Two close equal tones":
+        x = np.sin(2 * np.pi * 20 * t) + np.sin(2 * np.pi * (20 + delta_f) * t)
+        msg = f"Two close tones at 20 Hz and {20 + delta_f:.1f} Hz."
+    elif scenario == "Two close unequal tones":
+        x = 1.0 * np.sin(2 * np.pi * 20 * t) + 0.45 * np.sin(2 * np.pi * (20 + delta_f) * t)
+        msg = f"Unequal close tones at 20 Hz and {20 + delta_f:.1f} Hz."
+    elif scenario == "Broadband / flat spectrum":
+        x = rng.normal(size=len(t))
+        msg = "Broadband random signal."
+    else:
+        x = np.sin(2 * np.pi * 20 * t)
+        msg = "Fallback signal."
+    return x, msg
