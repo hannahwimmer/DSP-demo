@@ -10,11 +10,11 @@ import scipy.signal as sig
 import plotly.express as px
 
 st.set_page_config(
-    page_title="Lecture - Time-Frequency Analysis and Filtering",
+    page_title="Lecture 3 - Time-Frequency Analysis and Windowing",
     layout="wide",
 )
 
-st.title("Lecture 3: Further analyses and filtering")
+st.title("Lecture 3: Further analyses and windowing")
 
 st.header("1. Analyzing a signal's frequency content")
 st.markdown(
