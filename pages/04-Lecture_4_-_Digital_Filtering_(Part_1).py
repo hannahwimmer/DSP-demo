@@ -1,8 +1,8 @@
-from matplotlib.pylab import grid
-from scipy.constants import g
 import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
+import src.helpers as helpers
+import soundfile as sf
 
 st.set_page_config(
     page_title="Lecture 4 - Digital Filtering (Part 1)",
@@ -1019,3 +1019,106 @@ st.plotly_chart(fig_alias_time, use_container_width=True)
 alias_len = M - 1
 t_alias = np.arange(alias_len) / fs
 
+
+
+st.header("Aliasing in audio tracks")
+
+st.markdown(r"""
+    We've visually seen the effects of frequency domain (i.e., unclever adaptations in
+    time domain) and temporal domain aliasing (i.e., unclever adaptations in frequency
+    domain). Now let's listen to it. We can take a YouTube track, compute its DFT, 
+    apply an ideal filter, and then backtransform to the time domain to hear the effects
+    of ideal filtering and the associated artifacts.
+    """)
+
+youtube_url = st.text_input("Enter YouTube URL", 
+    value="https://www.youtube.com/watch?v=qjlVAsvQLM8&list=RDqjlVAsvQLM8&start_radio=1")
+
+if youtube_url:
+
+    title, result = helpers.download_song(youtube_url)
+    x, sr = sf.read(result)
+    col1, col2 = st.columns(2)
+    with col1:
+        start_sec = st.number_input("Starting point (seconds)", value=0.0, min_value=0.0, max_value=len(x)/sr, step=0.1, key="audio_start_sec")
+    if x.ndim > 1:  # convert to mono if stereo
+        x = x.mean(axis=1) 
+    if len(x) > sr * 60: # truncate if longer than 30 seconds
+        x = x[int(start_sec*sr):int(start_sec*sr) + sr * 60]
+
+    # frequency domain aliasing: just downsample the track without prior lowpass filtering
+    with col2:
+        M = st.number_input("Downsampling factor M", value=10, min_value=1, max_value=10, step=1)
+    x_ds = x[::M]
+
+
+    st.markdown("**Original track:**")
+    st.audio(x, sample_rate=sr)
+
+    st.markdown("**Downsampled track (Frequency-domain aliasing):**")
+    st.audio(x_ds, sample_rate=sr//M)
+
+    st.markdown(r"""
+        How distorted the track sounds after downsampling (without prior lowpass filtering
+        to avoid frequency domain aliasing) depends on the original track's spectral content.
+        As the audio sampling rate of 48kHz is quite high, we usually have to downsample
+        by a larger factor than just 2 to really hear the effects of frequency domain aliasing.
+        Still, you already hear distortions, especially of instances with a lot of
+        high-frequency content (e.g., cymbal hits, sibilants in vocals) quite soon -
+        try it out a bit!
+    """)
+
+    X = np.fft.fft(x)
+    X = X[::M]  # downsample in frequency domain
+    x_ds_freq = np.fft.ifft(X).real
+    st.markdown("**Track after downsampling in frequency domain (Temporal-domain aliasing):**")
+    st.audio(x_ds_freq, sample_rate=sr)
+
+    st.markdown(r"""
+        If we downsample in frequency domain (quite the unusual approach, but bear with
+        me for demonstration purposes), we introduce aliasing artifacts in time domain.
+        The track sounds good frequency-wise, but the temporal structure is all messed up,
+        with the original track's temporal patterns squeezed periodically into the novel,
+        shorter period of the iDFT. What you hear is a signal that is of length 1/M
+        of the original track, and the M segments of the original track are all
+        overlapping into each other in the novel period.
+
+        For 'structured' audio signals (clear 4/4 beat or the like), some of the effects
+        are still quite tame, but for more complex tracks, the result can be quite 
+        jarring. Try it with a [Tool song](https://www.youtube.com/watch?v=Y7JG63IuaWs&list=RDY7JG63IuaWs&start_radio=1), for example...
+    """)
+
+st.header("To summarize")
+st.markdown(r"""
+    - Ideal filters are quite nice in theory, but they have a lot of issues in practice: 
+        - their impulse response is infinitely long
+        - the corresponding impulse response is a sinc function, which oscillates 
+          and thus introduces ringing artifacts during convolution with the signal
+          (there's really no way around this...)
+        - the sinc function doesn't decay, ever - so we have to truncate it somewhere
+          in practice, which in turn means that the frequency response is no longer ideal
+        - if the impulse response is symmetric around zero, the filter will use *future*
+          values of the signal to compute the current output value --> not causal, and
+          not real-time implementable!
+        - in this case, we will also hear 'pre-ringing' artifacts, i.e., oscillations
+          before actual edges in the signal even occur (not very physical...)
+    - To implement a filter in the most basic way, we can just do a DFT, multiply by the
+      desired frequency response, and then do an iDFT to get back to the time domain.
+        - this approach is quite fast and allows us to approximate any wanted frequency
+          response quite well
+        - it may need a lot of samples in frequency domain to get a good approximation
+          of the desired frequency response, though, and calculation time may be 
+          exorbitant
+        - if we're not careful, we might introduce artifacts (like temporal aliasing),
+          so the signal needs to be sufficiently zero-padded to avoid these 'wrap-around'
+          artifacts due to the circular convolution nature of the DFT/iDFT
+        - a way around the circular convolution is to just select a desired frequency
+          response, compute the corresponding impulse response, and then convolve
+          (linearly!) in time domain (but this is usually much slower than doing it via
+          DFT/iDFT)
+        - another issue: as we sample the frequency response at discrete frequencies, we
+          always end up with a *finite* impulse response - so any filter we implement via
+          DFT/iDFT can only ever be an FIR filter. We will not be able to implement an
+          IIR filter (i.e., a filter involving feedback) via DFT/iDFT, as these have an
+          infinitely long impulse responses.
+""")

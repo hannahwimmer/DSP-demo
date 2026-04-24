@@ -1,5 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
+import os
+import yt_dlp
 
 
 # for session 1
@@ -78,15 +81,18 @@ def apply_system_by_name(x, system_name, shift_k=3, scale_factor=2):
     else:
         return x.copy()
 
+
 def test_superposition(system_func, x1, x2, alpha=1.0, beta=1.0):
     left = system_func(alpha * x1 + beta * x2)
     right = alpha * system_func(x1) + beta * system_func(x2)
     ok = np.allclose(left, right, atol=1e-9, rtol=1e-9)
     return left, right, ok
 
+
 def build_common_axis(x, h):
     N = len(x) + len(h) - 1
     return np.arange(N)
+
 
 def shift_kernel_for_convolution(h, out_idx, N):
     # Build h[n0-k] over k=0,...,N-1
@@ -229,19 +235,6 @@ def place_window_on_signal_grid(window: np.ndarray, total_len: int, start_idx: i
     return y
 
 
-def make_analysis_window(window_type: str, N: int) -> np.ndarray:
-    if window_type == "Rectangular":
-        return np.ones(N)
-    elif window_type == "Hann":
-        return np.hanning(N)
-    elif window_type == "Hamming":
-        return np.hamming(N)
-    elif window_type == "Blackman":
-        return np.blackman(N)
-    else:
-        raise ValueError(f"Unknown window type: {window_type}")
-
-
 def place_window(window: np.ndarray, total_len: int, start_idx: int) -> np.ndarray:
     y = np.zeros(total_len)
     end_idx = min(start_idx + len(window), total_len)
@@ -275,3 +268,108 @@ def generate_scenario_signal(scenario: str, t: np.ndarray, fs: float, rng: np.ra
         x = np.sin(2 * np.pi * 20 * t)
         msg = "Fallback signal."
     return x, msg
+
+
+def ideal_lowpass_ir(fc, sr, n_fft=4096):
+    f = np.fft.fftfreq(n_fft, d=1/sr)
+    H = (np.abs(f) <= fc).astype(float)  # now fc = total bandwidth
+
+    h = np.fft.ifft(H).real
+    h = np.fft.fftshift(h)
+    f = np.fft.fftshift(f)
+    H = np.fft.fftshift(H)
+    return h, H, f
+
+
+def ideal_bandpass_ir(f_lo, f_hi, sr, n_fft=16384, N=1023, window="hann"):
+    """
+    Zero-phase, acausal ideal bandpass via IFFT of a rectangular H(f).
+    Returns a centered, truncated impulse response h, plus H and f for plotting.
+
+    Use odd N for clean zero-phase alignment.
+    """
+    N = int(N)
+    if N % 2 == 0:
+        N += 1
+
+    f = np.fft.fftfreq(n_fft, d=1 / sr)
+    H = ((np.abs(f) >= f_lo) & (np.abs(f) <= f_hi)).astype(float)
+
+    h = np.fft.ifft(H).real
+    h = np.fft.fftshift(h)
+
+    # crop around zero
+    c = len(h) // 2
+    h = h[c - N // 2 : c + N // 2 + 1]
+
+    # optional window to control sidelobes a bit
+    if window == "hann":
+        h = h * np.hanning(len(h))
+    elif window == "hamming":
+        h = h * np.hamming(len(h))
+
+    # energy-ish normalization for stable listening demos
+    h = h / (np.sum(np.abs(h)) + 1e-12)
+
+    # for plotting
+    f = np.fft.fftshift(f)
+    H = np.fft.fftshift(H)
+
+    return h, H, f
+
+
+def zerophase_convolve(x, h):
+    """
+    Convolve and remove the linear-phase delay so the result is acausal/zero-phase.
+    """
+    y_full = np.convolve(x, h, mode="full")
+    M = len(h) // 2
+    y = y_full[M:M + len(x)]
+    return y
+
+
+def find_strong_transient(x, sr, smooth_ms=8):
+    """
+    Find a strong onset for zoom plotting.
+    """
+    x = np.asarray(x, dtype=float)
+    env = np.abs(x)
+    L = max(1, int(sr * smooth_ms / 1000))
+    kernel = np.ones(L) / L
+    env_s = np.convolve(env, kernel, mode="same")
+    d = np.diff(env_s, prepend=env_s[0])
+    i0 = int(np.argmax(d))
+    return i0
+
+
+def download_song(url):
+    try:
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "outtmpl": "temp/%(title)s.%(ext)s",
+            "noplaylist": True,
+            "postprocessors": [{
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "wav", 
+            }],
+        }
+
+        os.makedirs("temp", exist_ok=True)
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            title = info["title"].replace("/", "_")
+
+            save_dir = Path("data") / title
+            save_dir.mkdir(parents=True, exist_ok=True)
+
+            # yt-dlp will output .wav after postprocessing
+            temp_file = Path("temp") / f"{title}.wav"
+            final_file = save_dir / f"{title}.wav"
+
+            temp_file.replace(final_file)
+
+        return title, final_file
+
+    except Exception as e:
+        return None, str(e)

@@ -10,5 +10,7 @@ dependencies = [
     "pandas>=2.3.3",
     "plotly>=6.6.0",
     "scipy>=1.17.1",
+    "soundfile>=0.13.1",
     "streamlit>=1.54.0",
+    "yt-dlp>=2026.3.17",
 ]

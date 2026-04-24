@@ -7,7 +7,7 @@ from scipy.io import wavfile
 import numpy as np
 import scipy.signal as scisig
 import scipy.signal as sig
-import plotly.express as px
+
 
 st.set_page_config(
     page_title="Lecture 3 - Time-Frequency Analysis and Windowing",
@@ -785,7 +785,7 @@ t_start_demo = start_idx_demo / fs_demo
 t_end_demo = end_idx_demo / fs_demo
 
 seg_demo = x_demo[start_idx_demo:end_idx_demo]
-w_demo = helpers.make_analysis_window(chosen_window, N_demo)
+w_demo = helpers.make_short_window(chosen_window, N_demo)
 xw_demo = seg_demo * w_demo
 
 w_full_demo = helpers.place_window(w_demo, len(x_demo), start_idx_demo)
